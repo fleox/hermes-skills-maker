@@ -1,13 +1,13 @@
 ---
 name: hermes-create-skill
-description: "Bootstrap a new Hermes skill from an API doc URL or a functional brief, following the project's router + specialized-skills architecture. Handles category creation, shared api_client scaffolding, SKILL.md drafting with the right frontmatter, Python CLI generation, propagation to the container, and smoke tests. Use when the user asks to add a new capability to Hermes (a new API integration, a new domain, a new tool)."
+description: "Bootstrap a new Hermes skill from an API doc URL or a functional brief, following the router + specialized-skills architecture. Handles category creation, shared api_client scaffolding, SKILL.md drafting with the right frontmatter, Python CLI generation, propagation to the container, and smoke tests. Use when the user asks to add a new capability to Hermes (a new API integration, a new domain, a new tool)."
 ---
 
 # Build a new Hermes skill — router + specialized skills
 
-This skill guides you to **create a new Hermes skill** in this project
-(`config/skills/`) that mirrors the architecture we've established across
-the `sports/` and `nsn-ops/` categories.
+This skill guides you to **create a new Hermes skill** in a Hermes
+project (under `config/skills/`) using a proven **router + specialized
+skills** architecture.
 
 **Never build a single monolithic skill.** Always follow the router +
 specialized-skills pattern. Every new capability is a category, or a
@@ -32,12 +32,8 @@ Non-negotiable. This applies to:
 
 Rationale: the LLM matches the SKILL.md description in English against
 its own English-first tokenizer regardless of the user's UI language;
-mixed-language content degrades routing and increases context cost. Our
+mixed-language content degrades routing and increases context cost. The
 Hermes runtime is English; user replies get translated at the LLM layer.
-
-**Do NOT copy the French messages or comments from the earlier `sports/`
-and `nsn-ops/` skills** (they're the historical accretion, kept as-is
-for now). New skills you produce start fresh in English.
 
 ## Input types
 
@@ -77,26 +73,25 @@ config/skills/<category>/
 └── ...
 ```
 
-Reference implementations:
-- `config/skills/sports/` — 14 skills covering football/betting APIs
-- `config/skills/nsn-ops/` — 4 skills covering internal GitLab/Sentry/ES/Metabase
-
-**Read the corresponding `README.md` and `sports-overview/SKILL.md` (or
-`nsn-ops-overview/SKILL.md`) before writing anything new** — they codify
-the conventions.
+Before writing anything new, **inspect any existing category in the
+target project** (their `README.md` and `<category>-overview/SKILL.md`)
+— they codify the local conventions and often surface project-specific
+constraints you should mirror.
 
 ## Granularity — how to split into specialized skills
 
 Rule of thumb: **one specialized skill per sub-domain of user questions**.
 
 Examples of good splits:
-- Football: `sports-fixtures` (schedule), `sports-live` (scores), `sports-odds`
-  (betting lines), `sports-standings` (league table), `sports-player`
-  (stats/top scorers), `sports-team` (form/H2H), `sports-transfers`,
-  `sports-coach`, `sports-injuries`, `sports-referee`, `sports-search`,
-  `sports-insights` (value bets/arbitrage), `sports-meta` (provider metadata).
-- NSN Ops: `nsn-gitlab` (MRs/issues/projects), `nsn-sentry` (errors),
-  `nsn-elasticsearch` (logs), `nsn-metabase` (BI + ad-hoc SQL).
+- Sports/football API category: `sports-fixtures` (schedule), `sports-live`
+  (scores), `sports-odds` (betting lines), `sports-standings` (league
+  table), `sports-player` (stats/top scorers), `sports-team` (form/H2H),
+  `sports-transfers`, `sports-search`.
+- DevOps category: `devops-gitlab` (MRs/issues/projects), `devops-sentry`
+  (errors), `devops-elasticsearch` (logs), `devops-metabase` (BI + ad-hoc
+  SQL).
+- CRM category: `crm-contacts`, `crm-deals`, `crm-companies`,
+  `crm-activities`.
 
 Bad splits (do NOT do):
 - One skill per HTTP endpoint (too granular)
@@ -117,9 +112,9 @@ the time. Descriptions MUST be **mutually exclusive** within a category.
 
 | Layer                   | Description shape                            | Example |
 |-------------------------|----------------------------------------------|---------|
-| **Router**              | INTENTIONALLY BROAD — catches every keyword the domain uses, ends with "Load this FIRST" | "Router + shared HTTP clients for all NSN internal ops questions (GitLab merge requests / issues / projects, Sentry errors, Elasticsearch logs, Metabase dashboards + questions). Load this FIRST when the user asks anything about our GitLab, Sentry, logs, or Metabase." |
-| **Specialized skill**   | NARROW — only its own sub-domain, explicit "NOT" for adjacent scopes | "Read-only Sentry (sentry.n10.xyz) — list org projects, list unresolved errors by project, get issue details + latest event stack trace. Use for 'erreurs Sentry', 'stack trace de X'. NOT for raw logs (see /nsn-elasticsearch)." |
-| **`When NOT to use`** in body | Points explicitly to sibling skills for adjacent intents — reinforces exclusivity in-context | "- Raw logs (no exception) → `/nsn-elasticsearch`" |
+| **Router**              | INTENTIONALLY BROAD — catches every keyword the domain uses, ends with "Load this FIRST" | "Router + shared HTTP clients for all DevOps questions (GitLab merge requests / issues / projects, Sentry errors, Elasticsearch logs, Metabase dashboards + questions). Load this FIRST when the user asks anything about GitLab, Sentry, logs, or Metabase." |
+| **Specialized skill**   | NARROW — only its own sub-domain, explicit "NOT" for adjacent scopes | "Read-only Sentry — list org projects, list unresolved errors by project, get issue details + latest event stack trace. Use for 'Sentry errors', 'stack trace of X'. NOT for raw logs (see /devops-elasticsearch)." |
+| **`When NOT to use`** in body | Points explicitly to sibling skills for adjacent intents — reinforces exclusivity in-context | "- Raw logs (no exception) → `/devops-elasticsearch`" |
 
 Router description overlaps siblings on purpose (it's the front door).
 **Sibling descriptions must NOT overlap each other.**
@@ -129,24 +124,24 @@ Router description overlaps siblings on purpose (it's the front door).
 1. **Own ONE sub-domain per skill.** Never write "everything about X" —
    that competes with the router and steals its routing role.
 2. **List 3-5 concrete user phrasings** in the user's spoken language
-   (French + English if the users mix). These become the LLM's primary
-   matching signal.
+   (add non-English variants when the users mix languages). These
+   become the LLM's primary matching signal.
 3. **Name adjacent-but-different scopes with a "NOT" clause** in the
    description itself. Example: `"...NOT for player search (see
    /sports-player)."`
 4. **Match verbs to the skill's action**: "list", "get", "search", "count",
    "compare" — never generic verbs like "handle", "work with", "manage".
-5. **Include the data source** when disambiguating (e.g., "SportMonks
-   only" vs "Odds-API multi-sport"). If two skills query different
+5. **Include the data source** when disambiguating (e.g., "Provider A
+   only" vs "Provider B multi-source"). If two skills query different
    providers for overlapping domains, that IS the differentiator.
 
 ### Anti-patterns (would break routing)
 
 - Two skills claiming the same keyword: `sports-player: "top scorers"`
   AND `sports-standings: "top scorers"` → LLM flips a coin.
-- Specialized skill with router-like breadth: `nsn-gitlab: "all GitLab
+- Specialized skill with router-like breadth: `devops-gitlab: "all GitLab
   operations including issues, MRs, projects, pipelines, commits,
-  users..."` → competes with `nsn-ops-overview`.
+  users..."` → competes with `devops-overview`.
 - Vague verbs: `sports-team: "handle team data"` — matches nothing
   concretely, LLM won't reliably pick it.
 - Descriptions in one language when users prompt in another. Match the
@@ -168,8 +163,8 @@ Concrete process to run yourself before completion:
 3. For every skill pair `(A, B)`, compute `keywords[A] & keywords[B]`.
 4. If any pair overlaps on a domain-carrying keyword (not stopwords
    like "the", "use", "for"), FAIL and rewrite.
-5. Also cross-check against sibling categories: `sports-player top
-   scorers` should NOT collide with a `nsn-ops` keyword.
+5. Also cross-check against sibling categories: a `sports-player top
+   scorers` keyword should NOT collide with a `devops` keyword.
 
 You can literally run this as a Python one-liner during Step 7 of the
 workflow to catch collisions before propagation.
@@ -211,7 +206,7 @@ the language the user speaks, state what's NOT in scope.
 - **Exit codes**: 0 = success, 2 = `ApiError`, 3-4 = business errors
   (invalid input, no data, etc.) with a JSON `{error, hint}` on stderr.
 - **Read-only by default**. Never expose write operations unless the
-  user explicitly demands them AND we agree together it's safe.
+  user explicitly demands them AND you agree together it's safe.
 
 Scripts import from the router's shared code:
 ```python
@@ -272,7 +267,7 @@ python3 ~/.hermes/skills/<category>/<category>-<domain>/scripts/<name>.py <cmd> 
 ## Gotchas
 - <environment-specific fact that defies a reasonable assumption>
 - <auth / rate limit / TLS specific to THIS API>
-- <field returned in different case than requested (e.g., SportMonks `include=currentSeason` → response `currentseason`)>
+- <field returned in different case than requested (e.g., provider `include=currentSeason` → response `currentseason`)>
 - <pagination quirk that a naive loop would miss>
 ```
 
@@ -290,16 +285,16 @@ Section rules (spec-aligned with agentskills.io):
 ## SKILL.md size discipline
 
 **Hard cap: 500 lines / ~5,000 tokens per SKILL.md** (agentskills.io spec).
-Our current specialized skills sit around 80-150 lines — well under. This
-cap prevents future drift.
+Aim for specialized skills sitting around 80-150 lines. This cap
+prevents future drift.
 
 When you'd exceed the cap:
 1. Move detailed reference material to `<skill>/references/*.md`
 2. **In SKILL.md, tell the LLM EXACTLY WHEN to load each reference file** —
    never write a generic "see references/ for more". Example:
    ```markdown
-   For Odds-API HTTP 4xx / 5xx responses see
-   `references/oddsapi-errors.md` (loaded on demand).
+   For provider HTTP 4xx / 5xx responses see
+   `references/provider-errors.md` (loaded on demand).
    ```
 3. Keep the SKILL.md body itself focused on the 80% common workflow.
 
@@ -320,7 +315,7 @@ can't know without your skill:
 
 ✓ "Sentry issue IDs are numeric strings (both int and str accepted). The
    `events` endpoint paginates — take the newest for a fresh stack trace.
-   Auth header is `Bearer <token>`, org slug hardcoded to `nsn`."
+   Auth header is `Bearer <token>`, org slug configurable via env var."
 ```
 
 Rule of thumb: "Would the LLM get this wrong without this line?" If no,
@@ -423,8 +418,7 @@ Short templates inline; long ones in `assets/` referenced on demand.
 
 ### Validation loops / Plan-validate-execute
 
-For batch or destructive operations (once we add write skills), have the
-LLM:
+For batch or destructive operations (write skills), have the LLM:
 1. Do the work OR create an intermediate plan (JSON)
 2. Run a validator (script that checks the plan against source of truth)
 3. Fix any issues → re-validate
@@ -434,7 +428,7 @@ The validator's error message must be informative enough for the LLM to
 self-correct (e.g., "Field 'signature_date' not found — available fields:
 customer_name, order_total, signature_date_signed").
 
-Not applicable to our read-only skills today — but note this exists when
+Not applicable to read-only skills — but note this exists when
 scaffolding future write-capable ones.
 
 ## Interactive workflow you MUST follow
@@ -479,7 +473,7 @@ Only for a NEW category:
 1. `mkdir -p config/skills/<category>/{<category>-overview/scripts, <skill-A>/scripts, <skill-B>/scripts, ...}`
 2. Write `DESCRIPTION.md` (short, Hermes-facing)
 3. Write `<category>-overview/scripts/config.py` (URLs + tokens with env
-   var fallback, matching `NSN_OPS_*` or similar prefix convention)
+   var fallback, using a consistent `<CATEGORY>_<SERVICE>_*` prefix)
 4. Write `<category>-overview/scripts/api_client.py` (`HttpClient` base
    + per-service class(es))
 5. Write `<category>-overview/SKILL.md` (router — see next section)
@@ -573,13 +567,13 @@ Concise recap:
   like paths and preferences. Example:
   ```yaml
   required_environment_variables:
-    - name: NSN_OPS_GITLAB_TOKEN
-      prompt: "GitLab read-only PAT"
-      help: "https://gitlab.nsn/-/user_settings/personal_access_tokens"
+    - name: <CATEGORY>_<SERVICE>_TOKEN
+      prompt: "<Service> read-only PAT"
+      help: "https://<service>/-/user_settings/personal_access_tokens"
   ```
-  Our current skills use hardcoded fallbacks in `config.py` — this is
-  convenient for dev but the `required_environment_variables` route is
-  strictly cleaner for production secrets.
+  Hardcoded fallbacks in `config.py` are convenient for dev — but the
+  `required_environment_variables` route is strictly cleaner for
+  production secrets.
 
 ## Non-negotiable checks before saying "done"
 
@@ -622,39 +616,38 @@ Concise recap:
   must be `len(raw_page) < 100` (raw), not `len(out) < limit` (post-filter),
   otherwise a full page of filtered-out rows falsely signals EOF.
 - **Dedupe composite aggregations by canonical slug** when two `(k1, k2)`
-  pairs represent the same user-facing entity (see `Elasticsearch.sites()`
-  merging `<slug>` and `<slug>-static` for the same site).
+  pairs represent the same user-facing entity (e.g., merging `<slug>`
+  and `<slug>-static` for the same logical site).
 - **`--limit` defaults matter**: a low default silently truncates
   windowed queries. Set defaults to match the underlying client method's
   own default (usually 1000 for globally-scoped queries).
 - **API field naming**: some providers respond with different case than
-  the include (e.g., SportMonks `include=currentSeason` → response
-  `currentseason`). Always fetch a raw sample before parsing.
+  the include (e.g., `include=currentSeason` → response `currentseason`).
+  Always fetch a raw sample before parsing.
 - **Description shape matters**: too generic on a specialized skill
   makes it compete with the router; too vague on the router means it
-  never gets auto-loaded. Compare with `sports/` router description as
-  a reference.
+  never gets auto-loaded. Look at any existing router in the target
+  project as a reference.
 - **Self-signed certs / TLS opt-out**: scope `ssl.CERT_NONE` to the
-  specific client (not module-wide). See `GitLab` client in `nsn-ops`.
+  specific client (not module-wide) when a service uses a private CA.
 - **Never introduce new dependencies**. If you're tempted, extract the
   minimum you need from the stdlib (`urllib` covers 90% of what
   `requests` does).
 
-## Quick reference files to read first
+## Quick reference — what to load first when working in a project
 
-Before you start coding, load into context:
-1. `config/skills/sports/README.md` — 11-section dev doc explaining the
-   architecture and how Hermes discovers skills
-2. `config/skills/sports/sports-overview/SKILL.md` — canonical router
-   example with the decision-table pattern
-3. `config/skills/sports/sports-overview/scripts/api_client.py` — shared
-   HTTP client with multiple service classes
-4. `config/skills/nsn-ops/README.md` — same architecture applied to
-   internal ops tools, shorter and more focused
-5. `config/skills/nsn-ops/nsn-ops-overview/scripts/api_client.py` — the
-   4-service pattern (GitLab / Sentry / Elasticsearch / Metabase) with
-   TLS quirks, auth headers, per-page pagination
+Before you start coding, if the target project already has skill
+categories in `config/skills/`, load into context:
+1. Any existing `config/skills/<category>/README.md` — often the local
+   dev doc explaining category conventions and how Hermes discovers
+   skills in that project
+2. An existing `<category>-overview/SKILL.md` — canonical router example
+   with the decision-table pattern the project uses
+3. An existing `<category>-overview/scripts/api_client.py` — shared
+   HTTP client with per-service classes, showing local auth / TLS /
+   pagination conventions
 
-Reading these first ensures the new skill fits seamlessly into the
-existing project without you having to re-derive conventions from
-scratch.
+Reading existing categories first ensures the new skill fits seamlessly
+into the project without you having to re-derive conventions from
+scratch. If the project is empty of skills, this file alone is enough
+to bootstrap the first category cleanly.
